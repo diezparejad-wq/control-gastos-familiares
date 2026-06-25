@@ -96,6 +96,7 @@ function initApp() {
   setupExportEvent();
   setupFormFileInput();
   setupFormSubmit();
+  setupEditFormSubmit();
 
   // Conectar con Supabase
   if (SUPABASE_URL && SUPABASE_ANON_KEY) {
@@ -340,7 +341,7 @@ function renderTable(expenses) {
   if (expenses.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="6" class="table-empty">
+        <td colspan="7" class="table-empty">
           <i class="ph ph-warning-circle" style="font-size: 1.5rem; display: block; margin-bottom: 8px;"></i>
           No se encontraron gastos registrados.
         </td>
@@ -378,6 +379,16 @@ function renderTable(expenses) {
       </td>
       <td class="expense-amount">${formatCurrency(expense.monto)}</td>
       <td>${buttonHtml}</td>
+      <td>
+        <div class="table-actions">
+          <button class="btn-edit" data-id="${expense.id}" title="Editar gasto">
+            <i class="ph ph-pencil-simple"></i>
+          </button>
+          <button class="btn-delete" data-id="${expense.id}" title="Eliminar gasto">
+            <i class="ph ph-trash"></i>
+          </button>
+        </div>
+      </td>
     `;
 
     tbody.appendChild(tr);
@@ -387,6 +398,20 @@ function renderTable(expenses) {
     button.addEventListener("click", (e) => {
       const expenseId = e.currentTarget.getAttribute("data-id");
       openReceiptModal(expenseId);
+    });
+  });
+
+  document.querySelectorAll(".btn-edit").forEach(button => {
+    button.addEventListener("click", (e) => {
+      const expenseId = e.currentTarget.getAttribute("data-id");
+      openEditModal(expenseId);
+    });
+  });
+
+  document.querySelectorAll(".btn-delete").forEach(button => {
+    button.addEventListener("click", (e) => {
+      const expenseId = e.currentTarget.getAttribute("data-id");
+      deleteExpense(expenseId);
     });
   });
 
@@ -454,9 +479,25 @@ function setupModalEvents() {
   if (closeBtn) closeBtn.addEventListener("click", closeModal);
   if (backdrop) backdrop.addEventListener("click", closeModal);
 
+  // Configuración de modal de edición
+  const editModal = document.getElementById("edit-expense-modal");
+  const closeEditBtn = document.getElementById("btn-close-edit-modal");
+  const closeEditCancel = document.getElementById("btn-cancel-edit");
+  const editBackdrop = document.getElementById("edit-modal-close-backdrop");
+
+  const closeEditModal = () => {
+    editModal.classList.remove("active");
+    editModal.setAttribute("aria-hidden", "true");
+  };
+
+  if (closeEditBtn) closeEditBtn.addEventListener("click", closeEditModal);
+  if (closeEditCancel) closeEditCancel.addEventListener("click", closeEditModal);
+  if (editBackdrop) editBackdrop.addEventListener("click", closeEditModal);
+
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && modal.classList.contains("active")) {
-      closeModal();
+    if (e.key === "Escape") {
+      if (modal.classList.contains("active")) closeModal();
+      if (editModal.classList.contains("active")) closeEditModal();
     }
   });
 }
@@ -570,6 +611,141 @@ function setupFormSubmit() {
       btnSubmit.querySelector("span").textContent = "Guardar Gasto en Supabase";
     }
   });
+}
+
+// Configurar submit de edición de gasto
+function setupEditFormSubmit() {
+  const form = document.getElementById("edit-expense-form");
+  if (!form) return;
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const expenseId = document.getElementById("edit-exp-id").value;
+    const categoria = document.getElementById("edit-exp-categoria").value;
+    const monto = parseFloat(document.getElementById("edit-exp-monto").value);
+    const fecha = document.getElementById("edit-exp-fecha").value;
+    const responsable = document.getElementById("edit-exp-responsable").value;
+    const detalle = document.getElementById("edit-exp-detalle").value.trim();
+    
+    const btnSubmit = document.querySelector("#edit-expense-modal .btn-save-edit");
+    btnSubmit.disabled = true;
+    btnSubmit.textContent = "Guardando...";
+
+    try {
+      const gastoActualizado = {
+        fecha: new Date(fecha).toISOString(),
+        categoria,
+        detalle_lugar: detalle,
+        responsable,
+        monto
+      };
+
+      if (supabaseClient) {
+        const { error } = await supabaseClient
+          .from('gastos')
+          .update(gastoActualizado)
+          .eq('id', expenseId);
+
+        if (error) throw error;
+
+        // Recargar datos
+        await fetchRealExpenses();
+      } else {
+        // Modo demo
+        const idx = currentExpenses.findIndex(e => e.id === expenseId);
+        if (idx !== -1) {
+          currentExpenses[idx] = { ...currentExpenses[idx], ...gastoActualizado };
+          renderApp();
+        }
+      }
+
+      alert("🎉 Gasto actualizado con éxito.");
+      
+      // Cerrar modal
+      const editModal = document.getElementById("edit-expense-modal");
+      editModal.classList.remove("active");
+      editModal.setAttribute("aria-hidden", "true");
+
+    } catch (err) {
+      console.error("Error al actualizar gasto:", err.message);
+      alert(`Error al actualizar gasto: ${err.message}`);
+    } finally {
+      btnSubmit.disabled = false;
+      btnSubmit.textContent = "Guardar Cambios";
+    }
+  });
+}
+
+// Abrir modal de edición
+function openEditModal(expenseId) {
+  const expense = currentExpenses.find(e => e.id === expenseId);
+  if (!expense) return;
+
+  const modal = document.getElementById("edit-expense-modal");
+  
+  // Rellenar formulario
+  document.getElementById("edit-exp-id").value = expense.id;
+  document.getElementById("edit-exp-categoria").value = expense.categoria;
+  document.getElementById("edit-exp-monto").value = expense.monto;
+  
+  // Formatear fecha para el input (YYYY-MM-DD)
+  const d = new Date(expense.fecha);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  document.getElementById("edit-exp-fecha").value = `${year}-${month}-${day}`;
+  
+  document.getElementById("edit-exp-responsable").value = expense.responsable;
+  document.getElementById("edit-exp-detalle").value = expense.detalle_lugar;
+
+  // Mostrar modal
+  modal.classList.add("active");
+  modal.setAttribute("aria-hidden", "false");
+}
+
+// Eliminar un gasto de Supabase y del Storage si tiene constancia
+async function deleteExpense(expenseId) {
+  const expense = currentExpenses.find(e => e.id === expenseId);
+  if (!expense) return;
+
+  const confirmacion = confirm(`¿Estás seguro de que deseas eliminar el gasto por S/ ${Number(expense.monto).toFixed(2)} (${expense.categoria})?`);
+  if (!confirmacion) return;
+
+  try {
+    if (supabaseClient) {
+      // A. Si tiene foto en Storage, eliminar el archivo
+      if (expense.url_foto && expense.url_foto.trim() !== "" && !expense.url_foto.startsWith("http")) {
+        const { error: storageError } = await supabaseClient.storage
+          .from('fotos-gastos')
+          .remove([expense.url_foto]);
+
+        if (storageError) {
+          console.warn("No se pudo eliminar el archivo del Storage (puede haber sido ya borrado):", storageError.message);
+        }
+      }
+
+      // B. Eliminar registro en base de datos
+      const { error: dbError } = await supabaseClient
+        .from('gastos')
+        .delete()
+        .eq('id', expenseId);
+
+      if (dbError) throw dbError;
+
+      // Recargar datos
+      await fetchRealExpenses();
+    } else {
+      // Modo demo
+      currentExpenses = currentExpenses.filter(e => e.id !== expenseId);
+      renderApp();
+    }
+
+    alert("🗑️ Gasto eliminado correctamente.");
+  } catch (err) {
+    console.error("Error al eliminar gasto:", err.message);
+    alert(`Error al eliminar gasto: ${err.message}`);
+  }
 }
 
 // Abrir el modal de imagen de recibo (Soporta URLs firmadas de Supabase Storage)

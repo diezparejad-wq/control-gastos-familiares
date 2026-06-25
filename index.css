@@ -1285,3 +1285,58 @@ h1, h2, h3, h4, .brand-name, .card-value {
   }
 }
 
+/* Botones de Acciones en la Tabla (Editar/Eliminar) */
+.table-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-edit, .btn-delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background-color: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.btn-edit {
+  color: var(--pastel-blue-text);
+}
+
+.btn-edit:hover {
+  background-color: var(--pastel-blue-bg);
+  border-color: var(--pastel-blue-border);
+  color: var(--pastel-blue-text);
+  transform: translateY(-1px);
+}
+
+.btn-delete {
+  color: var(--color-error);
+}
+
+.btn-delete:hover {
+  background-color: #fef2f2;
+  border-color: #f87171;
+  color: #dc2626;
+  transform: translateY(-1px);
+}
+
+.btn-edit i, .btn-delete i {
+  font-size: 1rem;
+}
+
+.btn-cancel:hover {
+  background-color: var(--bg-main) !important;
+  border-color: var(--text-light) !important;
+}
+
+.btn-save-edit:hover {
+  background-color: #025a8b !important;
+}
+

@@ -175,12 +175,13 @@
                   <th>Responsable</th>
                   <th>Monto</th>
                   <th>Constancia</th>
+                  <th>Acciones</th>
                 </tr>
               </thead>
               <tbody id="expenses-table-body">
                 <!-- Se poblará dinámicamente con JavaScript -->
                 <tr>
-                  <td colspan="6" class="table-loading">
+                  <td colspan="7" class="table-loading">
                     <div class="skeleton-row">Cargando transacciones...</div>
                   </td>
                 </tr>
@@ -352,6 +353,67 @@
             <span id="modal-summary-date">00/00/0000</span>
           </div>
         </div>
+      </footer>
+    </div>
+  </div>
+
+  <!-- MODAL DE EDICIÓN DE GASTO -->
+  <div class="modal" id="edit-expense-modal" aria-hidden="true" role="dialog">
+    <div class="modal-backdrop" id="edit-modal-close-backdrop"></div>
+    <div class="modal-content">
+      <header class="modal-header">
+        <h3 class="modal-title">Editar Gasto Legal</h3>
+        <button class="modal-close-btn" id="btn-close-edit-modal" aria-label="Cerrar modal">
+          <i class="ph ph-x"></i>
+        </button>
+      </header>
+      <div class="modal-body">
+        <form class="expense-entry-form" id="edit-expense-form">
+          <input type="hidden" id="edit-exp-id">
+          
+          <div class="form-grid" style="display: grid; grid-template-columns: 1fr; gap: 16px;">
+            <div class="form-group">
+              <label for="edit-exp-categoria">Categoría de Gasto</label>
+              <select id="edit-exp-categoria" class="form-control-select" required>
+                <option value="Honorarios">Honorarios</option>
+                <option value="Tasas y Tributos">Tasas y Tributos</option>
+                <option value="Notaría y Registros">Notaría y Registros</option>
+                <option value="Transporte y Viáticos">Transporte y Viáticos</option>
+                <option value="Alimentación y Representación">Alimentación y Representación</option>
+                <option value="Suministros y Oficina">Suministros y Oficina</option>
+                <option value="Servicios Públicos">Servicios Públicos</option>
+                <option value="Otros Gastos">Otros Gastos</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="edit-exp-monto">Monto (S/.)</label>
+              <input type="number" id="edit-exp-monto" class="form-control-input" placeholder="0.00" step="0.01" min="0.01" required>
+            </div>
+
+            <div class="form-group">
+              <label for="edit-exp-fecha">Fecha del Gasto</label>
+              <input type="date" id="edit-exp-fecha" class="form-control-input" required>
+            </div>
+
+            <div class="form-group">
+              <label for="edit-exp-responsable">Sede Responsable</label>
+              <select id="edit-exp-responsable" class="form-control-select" required>
+                <option value="Lima">Sede Lima</option>
+                <option value="Piura">Sede Piura</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="edit-exp-detalle">Detalle / Lugar / Motivo</label>
+              <input type="text" id="edit-exp-detalle" class="form-control-input" required>
+            </div>
+          </div>
+        </form>
+      </div>
+      <footer class="modal-footer" style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px;">
+        <button type="button" class="btn-cancel" id="btn-cancel-edit" style="background: none; border: 1px solid var(--border-color); padding: 8px 16px; border-radius: var(--radius-sm); cursor: pointer;">Cancelar</button>
+        <button type="submit" form="edit-expense-form" class="btn-save-edit" style="background-color: var(--pastel-blue-text); color: white; border: none; padding: 8px 16px; border-radius: var(--radius-sm); cursor: pointer; font-weight: 500;">Guardar Cambios</button>
       </footer>
     </div>
   </div>
