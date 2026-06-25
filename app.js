@@ -163,7 +163,13 @@ function setupAuth() {
         if (error) throw error;
       } catch (err) {
         console.error("Fallo de autenticación:", err.message);
-        loginError.textContent = "Credenciales incorrectas o usuario no autorizado.";
+        let errMsg = err.message;
+        if (errMsg === "Invalid login credentials") {
+          errMsg = "Credenciales incorrectas (correo o contraseña inválidos).";
+        } else if (errMsg === "Email not confirmed") {
+          errMsg = "El correo no ha sido confirmado. Confírmalo o deshabilita 'Confirm email' en Supabase.";
+        }
+        loginError.textContent = errMsg || "Credenciales incorrectas o usuario no autorizado.";
         loginError.style.display = "block";
       } finally {
         btnSubmit.disabled = false;
