@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Legal-Expense Tracker | Control Financiero</title>
+  <meta name="description" content="PWA de control financiero familiar estilo Fintech para el registro y auditoría de gastos legales y de representación.">
+  
+  <!-- Configuración de PWA y Meta Tags Móviles -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#111827">
+  
+  <!-- Configuración específica de Apple / iOS -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="LegalExpense">
+  <link rel="apple-touch-icon" sizes="192x192" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" sizes="512x512" href="icons/icon-512.png">
+  
+  <!-- Google Fonts - Inter & Outfit para estética Fintech Premium -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Iconos Phosphor -->
+  <script src="https://unpkg.com/@phosphor-icons/web@2.1.1"></script>
+  
+  <!-- Estilos propios -->
+  <link rel="stylesheet" href="index.css">
+  
+  <!-- SDK de Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <!-- jsPDF & jsPDF-AutoTable para Exportar Reportes a PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body>
+  
+  <div class="app-container">
+    <!-- MENÚ LATERAL (SIDEBAR) - ESTILO FINTECH OSCURO -->
+    <aside class="sidebar" id="app-sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-logo">
+          <i class="ph ph-scales"></i>
+        </div>
+        <span class="brand-name">LegalExpense</span>
+      </div>
+      
+      <nav class="sidebar-nav">
+        <a href="#" class="nav-item active" id="nav-dashboard">
+          <i class="ph ph-chart-pie-slice"></i>
+          <span>Dashboard</span>
+        </a>
+        <a href="#" class="nav-item" id="nav-expenses">
+          <i class="ph ph-receipt"></i>
+          <span>Gastos</span>
+        </a>
+        <a href="#" class="nav-item" id="nav-reports">
+          <i class="ph ph-file-text"></i>
+          <span>Reportes</span>
+        </a>
+      </nav>
+      
+      <div class="sidebar-footer">
+        <div class="user-profile">
+          <div class="user-avatar" id="user-avatar-initials">--</div>
+          <div class="user-info">
+            <span class="user-name" id="user-display-email">cargando...</span>
+            <span class="user-role">Socio Autorizado</span>
+          </div>
+        </div>
+        <button class="btn-logout" id="btn-sidebar-logout" title="Cerrar sesión">
+          <i class="ph ph-sign-out"></i>
+          <span>Cerrar Sesión</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- ÁREA PRINCIPAL - ESTILO CLARO Y LIMPIO -->
+    <main class="main-content">
+      
+      <!-- HEADER SUPERIOR -->
+      <header class="main-header">
+        <div class="header-left">
+          <button class="mobile-menu-toggle" id="btn-mobile-menu" aria-label="Abrir menú">
+            <i class="ph ph-list"></i>
+          </button>
+          <div>
+            <h1 class="page-title">Dashboard</h1>
+            <p class="page-subtitle">Control financiero familiar y legal en tiempo real</p>
+          </div>
+        </div>
+        <div class="header-right">
+          <!-- Indicador de conexión a Supabase -->
+          <div class="status-indicator online" id="db-status-badge">
+            <span class="status-dot"></span>
+            <span class="status-text">Supabase Conectado</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- SECCIÓN DEL DASHBOARD -->
+      <section class="dashboard-section">
+        
+        <!-- TARJETAS SUPERIORES (TOP CARDS) - COLORES PASTEL -->
+        <div class="stats-grid">
+          <!-- Card 1: Total Mes (Celeste Pastel) -->
+          <div class="stat-card card-total-mes">
+            <div class="card-icon">
+              <i class="ph ph-calendar-blank"></i>
+            </div>
+            <div class="card-details">
+              <span class="card-label">Total Mes Actual</span>
+              <h2 class="card-value" id="stat-total-mes">S/ 0.00</h2>
+              <span class="card-subtext" id="stat-subtext-mes">0 transacciones</span>
+            </div>
+          </div>
+
+          <!-- Card 2: Total Lima (Verde Pastel) -->
+          <div class="stat-card card-total-lima">
+            <div class="card-icon">
+              <i class="ph ph-buildings"></i>
+            </div>
+            <div class="card-details">
+              <span class="card-label">Sede Lima</span>
+              <h2 class="card-value" id="stat-total-lima">S/ 0.00</h2>
+              <span class="card-subtext" id="stat-subtext-lima">0 transacciones</span>
+            </div>
+          </div>
+
+          <!-- Card 3: Total Piura (Lavanda Pastel) -->
+          <div class="stat-card card-total-piura">
+            <div class="card-icon">
+              <i class="ph ph-tree"></i>
+            </div>
+            <div class="card-details">
+              <span class="card-label">Sede Piura</span>
+              <h2 class="card-value" id="stat-total-piura">S/ 0.00</h2>
+              <span class="card-subtext" id="stat-subtext-piura">0 transacciones</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- CONTENEDOR DE LA TABLA DE AUDITORÍA -->
+        <div class="table-container">
+          <div class="table-header">
+            <div class="table-header-left">
+              <h3 class="table-title">Tabla de Auditoría</h3>
+              <p class="table-subtitle">Historial completo de gastos registrados</p>
+            </div>
+            <div class="table-header-actions">
+              <!-- Botón Exportar PDF -->
+              <button class="btn-export-pdf" id="btn-export-pdf" title="Exportar reporte PDF formal">
+                <i class="ph ph-file-pdf"></i>
+                <span>Exportar PDF</span>
+              </button>
+              
+              <!-- Filtro rápido por sede -->
+              <select id="filter-responsable" class="filter-select" aria-label="Filtrar por responsable">
+                <option value="todos">Todos los responsables</option>
+                <option value="Lima">Lima</option>
+                <option value="Piura">Piura</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="table-responsive">
+            <table class="expenses-table" id="table-expenses">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Categoría</th>
+                  <th>Detalle / Lugar</th>
+                  <th>Responsable</th>
+                  <th>Monto</th>
+                  <th>Constancia</th>
+                </tr>
+              </thead>
+              <tbody id="expenses-table-body">
+                <!-- Se poblará dinámicamente con JavaScript -->
+                <tr>
+                  <td colspan="6" class="table-loading">
+                    <div class="skeleton-row">Cargando transacciones...</div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          
+          <div class="table-footer" id="table-expenses-footer">
+            <span>Mostrando <strong id="visible-count">0</strong> de <strong id="total-count">0</strong> gastos</span>
+          </div>
+        </div>
+
+      </section>
+    </main>
+  </div>
+
+  <!-- MODAL DE CONSTANCIA - VISUALIZACIÓN DE FOTOS -->
+  <div class="modal" id="receipt-modal" aria-hidden="true" role="dialog">
+    <div class="modal-backdrop" id="modal-close-backdrop"></div>
+    <div class="modal-content">
+      <header class="modal-header">
+        <h3 class="modal-title" id="receipt-modal-title">Constancia de Gasto</h3>
+        <button class="modal-close-btn" id="btn-close-modal" aria-label="Cerrar modal">
+          <i class="ph ph-x"></i>
+        </button>
+      </header>
+      <div class="modal-body">
+        <div class="receipt-image-wrapper">
+          <img src="" alt="Constancia del recibo" id="modal-receipt-img" class="receipt-image">
+          <div class="no-image-placeholder" id="modal-no-image">
+            <i class="ph ph-image-square"></i>
+            <p>No se subió constancia para este gasto.</p>
+          </div>
+        </div>
+      </div>
+      <footer class="modal-footer">
+        <div class="modal-expense-summary">
+          <div>
+            <strong id="modal-summary-category">Categoría</strong>
+            <span id="modal-summary-detail">Detalle del lugar</span>
+          </div>
+          <div class="text-right">
+            <strong class="modal-summary-amount" id="modal-summary-amount">S/ 0.00</strong>
+            <span id="modal-summary-date">00/00/0000</span>
+          </div>
+        </div>
+      </footer>
+    </div>
+  </div>
+
+  <!-- Script principal -->
+  <script src="app.js"></script>
+</body>
+</html>

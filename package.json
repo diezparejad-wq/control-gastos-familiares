@@ -1,0 +1,14 @@
+{
+  "name": "legal-expense-bot",
+  "version": "1.0.0",
+  "description": "Telegram Bot for logging expenses to Supabase",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.8",
+    "dotenv": "^16.4.5",
+    "node-telegram-bot-api": "^0.65.1"
+  }
+}
