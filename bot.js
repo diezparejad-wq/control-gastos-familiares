@@ -10,20 +10,20 @@ const { createClient } = require('@supabase/supabase-js');
 const {
   TELEGRAM_BOT_TOKEN,
   SUPABASE_URL,
-  SUPABASE_ANON_KEY,
+  SUPABASE_SERVICE_ROLE_KEY,
   TELEGRAM_ALLOWED_USERS,
   TELEGRAM_USER_LIMA,
   TELEGRAM_USER_PIURA
 } = process.env;
 
-if (!TELEGRAM_BOT_TOKEN || !SUPABASE_URL || !SUPABASE_ANON_KEY) {
+if (!TELEGRAM_BOT_TOKEN || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   console.error("❌ ERROR: Falta configurar variables críticas en el archivo .env");
   console.error("Asegúrate de copiar .env.example a .env y llenar los campos.");
   process.exit(1);
 }
 
 // 2. INICIALIZAR CLIENTES
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 const bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { polling: true });
 
 console.log("🚀 Bot de Telegram iniciado correctamente y escuchando...");
