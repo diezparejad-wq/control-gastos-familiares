@@ -11,7 +11,7 @@ let currentExpenses = [];
 // IMPORTANTE: Sustituye estas credenciales por las de tu proyecto de Supabase
 // para conectar la base de datos real y salir del modo demo.
 const SUPABASE_URL = "https://nqwimdlgddszuqubdddp.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xd2ltZGxnZGRzenVxdWJkZGRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0MDE1MTYsImV4cCI6MjA5Nzk3NzUxNn0.py0opPk4tK4DK5UsZ1wMuss49ANbmeCRpDn_TGru62gqui";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xd2ltZGxnZGRzenVxdWJkZGRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0MDE1MTYsImV4cCI6MjA5Nzk3NzUxNn0.py0opPk4tK4DK5UsZ1wMuss49ANbmeCRpDn_TGru62g";
 // ==========================================
 
 // Datos ficticios (Mock Data) para visualización inmediata en Fase 2 y modo Demo
