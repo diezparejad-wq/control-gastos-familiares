@@ -6,11 +6,16 @@
 let supabaseClient = null;
 let currentExpenses = [];
 
-// Credenciales de Supabase (se configurarán en la Fase 3)
-const SUPABASE_URL = ""; 
-const SUPABASE_ANON_KEY = "";
+// Credenciales de Supabase
+// ==========================================
+// IMPORTANTE: Sustituye estas credenciales por las de tu proyecto de Supabase
+// para conectar la base de datos real y salir del modo demo.
+const SUPABASE_URL = "https://nqwimdlgddszuqubdddp.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xd2ltZGxnZGRzenVxdWJkZGRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0MDE1MTYsImV4cCI6MjA5Nzk3NzUxNn0.py0opPk4tK4DK5UsZ1wMuss49ANbmeCRpDn_TGru62g
+";
+// ==========================================
 
-// Datos ficticios (Mock Data) para visualización inmediata en Fase 2
+// Datos ficticios (Mock Data) para visualización inmediata en Fase 2 y modo Demo
 const MOCK_EXPENSES = [
   {
     id: "gasto-1",
@@ -68,50 +73,147 @@ const MOCK_EXPENSES = [
   }
 ];
 
+const CATEGORIAS_VALIDAS = [
+  'Honorarios',
+  'Tasas y Tributos',
+  'Notaría y Registros',
+  'Transporte y Viáticos',
+  'Alimentación y Representación',
+  'Suministros y Oficina',
+  'Servicios Públicos',
+  'Otros Gastos'
+];
+
 // 2. INICIALIZACIÓN
 document.addEventListener("DOMContentLoaded", () => {
   initApp();
 });
 
 function initApp() {
+  setupNavigation();
   setupMobileMenu();
   setupModalEvents();
   setupFilterEvents();
   setupExportEvent();
-  
-  // Inicializar Supabase si las credenciales están provistas
+  setupFormFileInput();
+  setupFormSubmit();
+
+  // Conectar con Supabase
   if (SUPABASE_URL && SUPABASE_ANON_KEY) {
     try {
       supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
       updateDbStatus(true);
-      fetchRealExpenses();
+      setupAuth();
     } catch (error) {
       console.error("Error al conectar con Supabase:", error);
-      updateDbStatus(false);
-      loadMockData();
+      setupDemoMode();
     }
   } else {
-    // Si no hay credenciales, cargamos los datos ficticios inmediatamente
-    updateDbStatus(false);
-    loadMockData();
+    // Si no hay claves, forzar modo demo sin bloqueo de Login
+    setupDemoMode();
   }
 
   // Registrar Service Worker para PWA
   registerServiceWorker();
 }
 
+// 3. CONFIGURACIÓN DE AUTENTICACIÓN (REAL SUPABASE)
+function setupAuth() {
+  const loginForm = document.getElementById("login-form");
+  const loginError = document.getElementById("login-error");
+  const loginContainer = document.getElementById("login-container");
+
+  // Escuchar cambios de sesión
+  supabaseClient.auth.onAuthStateChange((event, session) => {
+    if (session) {
+      // Ocultar login overlay
+      loginContainer.classList.remove("active");
+
+      // Actualizar perfil del usuario
+      const email = session.user.email;
+      document.getElementById("user-avatar-initials").textContent = email.substring(0, 2).toUpperCase();
+      document.getElementById("user-display-email").textContent = email;
+
+      // Cargar datos reales
+      fetchRealExpenses();
+    } else {
+      // Mostrar login overlay
+      loginContainer.classList.add("active");
+    }
+  });
+
+  // Evento de submit del Login
+  if (loginForm) {
+    loginForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const email = document.getElementById("login-email").value.trim();
+      const password = document.getElementById("login-password").value;
+      const btnSubmit = document.getElementById("btn-login-submit");
+
+      loginError.style.display = "none";
+      btnSubmit.disabled = true;
+      btnSubmit.querySelector("span").textContent = "Verificando...";
+
+      try {
+        const { data, error } = await supabaseClient.auth.signInWithPassword({
+          email: email,
+          password: password
+        });
+
+        if (error) throw error;
+      } catch (err) {
+        console.error("Fallo de autenticación:", err.message);
+        loginError.textContent = "Credenciales incorrectas o usuario no autorizado.";
+        loginError.style.display = "block";
+      } finally {
+        btnSubmit.disabled = false;
+        btnSubmit.querySelector("span").textContent = "Iniciar Sesión";
+      }
+    });
+  }
+
+  // Evento Cierre de Sesión
+  const btnLogout = document.getElementById("btn-sidebar-logout");
+  if (btnLogout) {
+    btnLogout.addEventListener("click", async () => {
+      if (confirm("¿Estás seguro de que deseas cerrar sesión?")) {
+        await supabaseClient.auth.signOut();
+      }
+    });
+  }
+}
+
+// Configuración de Modo Demo
+function setupDemoMode() {
+  updateDbStatus(false);
+
+  // Ocultar Login para permitir navegación libre
+  const loginContainer = document.getElementById("login-container");
+  if (loginContainer) loginContainer.classList.remove("active");
+
+  loadMockData();
+
+  // Deshabilitar botón de logout e indicar demo
+  const btnLogout = document.getElementById("btn-sidebar-logout");
+  if (btnLogout) {
+    btnLogout.addEventListener("click", () => {
+      alert("En Modo Demo no puedes cerrar sesión.");
+    });
+  }
+}
+
 // Actualiza el badge visual del estado de base de datos
 function updateDbStatus(isConnected) {
   const badge = document.getElementById("db-status-badge");
   const text = badge.querySelector(".status-text");
-  
+
   if (isConnected) {
     badge.className = "status-indicator online";
     text.textContent = "Supabase Conectado";
   } else {
     badge.className = "status-indicator offline";
     text.textContent = "Modo Demo (Offline)";
-    // Actualizar initials del usuario demo en el sidebar
     document.getElementById("user-avatar-initials").textContent = "DM";
     document.getElementById("user-display-email").textContent = "demo@legaltracker.pe";
   }
@@ -123,28 +225,77 @@ function loadMockData() {
   renderApp();
 }
 
-// 3. RENDERIZACIÓN DE LA INTERFAZ
+// 4. CONTROLADORES DE RUTA (Sidebar Navigation)
+function setupNavigation() {
+  const navDashboard = document.getElementById("nav-dashboard");
+  const navExpenses = document.getElementById("nav-expenses");
+  const navReports = document.getElementById("nav-reports");
+
+  const secDashboard = document.getElementById("section-dashboard");
+  const secExpenses = document.getElementById("section-expenses");
+  const secReports = document.getElementById("section-reports");
+
+  const pageTitle = document.getElementById("main-page-title");
+
+  const switchSection = (activeNav, activeSec, title) => {
+    // Quitar active de navs
+    [navDashboard, navExpenses, navReports].forEach(nav => nav.classList.remove("active"));
+    // Ocultar secciones
+    [secDashboard, secExpenses, secReports].forEach(sec => sec.style.display = "none");
+
+    // Activar seleccionado
+    activeNav.classList.add("active");
+    activeSec.style.display = "block";
+    pageTitle.textContent = title;
+
+    // Si es la sección de reportes, actualizar insights
+    if (activeSec === secReports) {
+      renderReportInsights();
+    }
+  };
+
+  if (navDashboard) {
+    navDashboard.addEventListener("click", (e) => {
+      e.preventDefault();
+      switchSection(navDashboard, secDashboard, "Dashboard");
+    });
+  }
+
+  if (navExpenses) {
+    navExpenses.addEventListener("click", (e) => {
+      e.preventDefault();
+      switchSection(navExpenses, secExpenses, "Gastos");
+    });
+  }
+
+  if (navReports) {
+    navReports.addEventListener("click", (e) => {
+      e.preventDefault();
+      switchSection(navReports, secReports, "Reportes");
+    });
+  }
+}
+
+// 5. RENDERIZACIÓN DE LA INTERFAZ
 function renderApp(filteredResponsable = "todos") {
-  const filtered = filteredResponsable === "todos" 
-    ? currentExpenses 
+  const filtered = filteredResponsable === "todos"
+    ? currentExpenses
     : currentExpenses.filter(e => e.responsable === filteredResponsable);
 
   renderTotals();
   renderTable(filtered);
 }
 
-// Cómputo e impresión de totales (Cards superiores en colores pastel)
+// Cómputo de totales (Cards superiores)
 function renderTotals() {
   const currentMonth = new Date().getMonth();
   const currentYear = new Date().getFullYear();
 
-  // Filtrar los gastos que pertenecen al mes actual
   const currentMonthExpenses = currentExpenses.filter(expense => {
     const d = new Date(expense.fecha);
     return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
   });
 
-  // Sumas por sede y total
   let totalMes = 0;
   let totalLima = 0;
   let totalPiura = 0;
@@ -167,7 +318,6 @@ function renderTotals() {
     }
   });
 
-  // Actualizar DOM
   document.getElementById("stat-total-mes").textContent = formatCurrency(totalMes);
   document.getElementById("stat-subtext-mes").textContent = `${countMes} transacciones`;
 
@@ -181,7 +331,7 @@ function renderTotals() {
 // Pintar la tabla de gastos
 function renderTable(expenses) {
   const tbody = document.getElementById("expenses-table-body");
-  
+
   if (expenses.length === 0) {
     tbody.innerHTML = `
       <tr>
@@ -197,18 +347,14 @@ function renderTable(expenses) {
 
   tbody.innerHTML = "";
 
-  // Ordenar gastos por fecha descendente
   const sortedExpenses = [...expenses].sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
 
   sortedExpenses.forEach(expense => {
     const tr = document.createElement("tr");
-    
-    // Formato de Categoría
+
     const catClass = getCategoryClass(expense.categoria);
-    
-    // Configuración del botón de constancia
     const hasPhoto = expense.url_foto && expense.url_foto.trim() !== "";
-    const buttonHtml = hasPhoto 
+    const buttonHtml = hasPhoto
       ? `<button class="btn-constancia" data-id="${expense.id}">
            <i class="ph ph-image"></i> Ver Constancia
          </button>`
@@ -228,11 +374,10 @@ function renderTable(expenses) {
       <td class="expense-amount">${formatCurrency(expense.monto)}</td>
       <td>${buttonHtml}</td>
     `;
-    
+
     tbody.appendChild(tr);
   });
 
-  // Asignar eventos de clic a los botones de constancia recién creados
   document.querySelectorAll(".btn-constancia:not(.no-image)").forEach(button => {
     button.addEventListener("click", (e) => {
       const expenseId = e.currentTarget.getAttribute("data-id");
@@ -246,6 +391,15 @@ function renderTable(expenses) {
 function updateTableFooter(visible, total) {
   document.getElementById("visible-count").textContent = visible;
   document.getElementById("total-count").textContent = total;
+}
+
+// Pintar datos del panel de Reportes
+function renderReportInsights() {
+  const totalGeneral = currentExpenses.reduce((sum, e) => sum + Number(e.monto), 0);
+  const countWithReceipt = currentExpenses.filter(e => e.url_foto && e.url_foto.trim() !== "").length;
+
+  document.getElementById("report-total-general").textContent = formatCurrency(totalGeneral);
+  document.getElementById("report-total-with-receipt").textContent = countWithReceipt;
 }
 
 // Helper para asignar clase CSS a las categorías
@@ -263,18 +417,17 @@ function getCategoryClass(categoria) {
   }
 }
 
-// 4. CONTROLADORES DE EVENTOS
+// 6. CONTROLADORES DE EVENTOS
 function setupMobileMenu() {
   const menuBtn = document.getElementById("btn-mobile-menu");
   const sidebar = document.getElementById("app-sidebar");
-  
+
   if (menuBtn && sidebar) {
     menuBtn.addEventListener("click", (e) => {
       e.stopPropagation();
       sidebar.classList.toggle("active");
     });
-    
-    // Cerrar sidebar al hacer clic fuera
+
     document.addEventListener("click", (e) => {
       if (sidebar.classList.contains("active") && !sidebar.contains(e.target) && e.target !== menuBtn) {
         sidebar.classList.remove("active");
@@ -296,7 +449,6 @@ function setupModalEvents() {
   if (closeBtn) closeBtn.addEventListener("click", closeModal);
   if (backdrop) backdrop.addEventListener("click", closeModal);
 
-  // Cerrar con Escape
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && modal.classList.contains("active")) {
       closeModal();
@@ -311,6 +463,108 @@ function setupFilterEvents() {
       renderApp(e.target.value);
     });
   }
+}
+
+// Interacción del cargador de archivos del formulario
+function setupFormFileInput() {
+  const fileInput = document.getElementById("exp-foto");
+  const uploadText = document.getElementById("file-upload-text");
+
+  if (fileInput) {
+    fileInput.addEventListener("change", (e) => {
+      if (e.target.files.length > 0) {
+        uploadText.textContent = `Archivo seleccionado: ${e.target.files[0].name}`;
+      } else {
+        uploadText.textContent = "Arrastra o haz clic para subir una foto";
+      }
+    });
+  }
+}
+
+// Enviar formulario manual a Supabase o Demo
+function setupFormSubmit() {
+  const form = document.getElementById("expense-form");
+  if (!form) return;
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const categoria = document.getElementById("exp-categoria").value;
+    const monto = parseFloat(document.getElementById("exp-monto").value);
+    const fecha = document.getElementById("exp-fecha").value;
+    const responsable = document.getElementById("exp-responsable").value;
+    const detalle = document.getElementById("exp-detalle").value.trim();
+    const fileFile = document.getElementById("exp-foto").files[0];
+    const btnSubmit = document.getElementById("btn-save-expense");
+
+    btnSubmit.disabled = true;
+    btnSubmit.querySelector("span").textContent = "Guardando gasto...";
+
+    try {
+      let urlFoto = null;
+
+      // A. SUBIR FOTO A STORAGE
+      if (fileFile) {
+        if (supabaseClient) {
+          const fileExt = fileFile.name.split('.').pop();
+          const fileName = `${Date.now()}_web_${Math.random().toString(36).substring(7)}.${fileExt}`;
+
+          const { data: uploadData, error: uploadError } = await supabaseClient.storage
+            .from('fotos-gastos')
+            .upload(fileName, fileFile, {
+              cacheControl: '3600',
+              upsert: false
+            });
+
+          if (uploadError) throw uploadError;
+          urlFoto = fileName; // Guarda ruta relativa en bucket privado
+        } else {
+          // Fallback demo local (URL temporal de objeto)
+          urlFoto = URL.createObjectURL(fileFile);
+        }
+      }
+
+      // B. REGISTRAR EN BASE DE DATOS
+      const nuevoGasto = {
+        fecha: new Date(fecha).toISOString(),
+        categoria,
+        detalle_lugar: detalle,
+        responsable,
+        monto,
+        url_foto: urlFoto
+      };
+
+      if (supabaseClient) {
+        const { error } = await supabaseClient
+          .from('gastos')
+          .insert([nuevoGasto]);
+
+        if (error) throw error;
+
+        // Recargar desde base de datos
+        await fetchRealExpenses();
+      } else {
+        // Modo demo
+        nuevoGasto.id = `demo-${Date.now()}`;
+        currentExpenses.push(nuevoGasto);
+        renderApp();
+      }
+
+      alert("🎉 Gasto registrado exitosamente.");
+      form.reset();
+      document.getElementById("file-upload-text").textContent = "Arrastra o haz clic para subir una foto";
+
+      // Redirigir al Dashboard
+      document.getElementById("nav-dashboard").click();
+
+    } catch (err) {
+      console.error("Error al guardar gasto:", err.message);
+      alert(`Error al registrar gasto: ${err.message}`);
+    } finally {
+      btnSubmit.disabled = false;
+      btnSubmit.querySelector("span").textContent = "Guardar Gasto en Supabase";
+    }
+  });
 }
 
 // Abrir el modal de imagen de recibo (Soporta URLs firmadas de Supabase Storage)
@@ -331,14 +585,14 @@ async function openReceiptModal(expenseId) {
   // Poblado de imagen
   if (expense.url_foto && expense.url_foto.trim() !== "") {
     let imageUrl = expense.url_foto;
-    
+
     // Si no es un enlace absoluto (mock) y tenemos cliente de Supabase, generamos URL firmada
     if (!imageUrl.startsWith("http") && supabaseClient) {
       try {
         const { data, error } = await supabaseClient.storage
           .from('fotos-gastos')
           .createSignedUrl(imageUrl, 3600); // 1 hora de expiración para el modal
-          
+
         if (error) throw error;
         imageUrl = data.signedUrl;
       } catch (err) {
@@ -346,7 +600,7 @@ async function openReceiptModal(expenseId) {
         imageUrl = ""; // Fallback
       }
     }
-    
+
     if (imageUrl) {
       modalImg.src = imageUrl;
       modalImg.style.display = "block";
@@ -367,10 +621,10 @@ async function openReceiptModal(expenseId) {
   modal.setAttribute("aria-hidden", "false");
 }
 
-// 5. CONEXIÓN REAL CON SUPABASE (FUTURO)
+// 7. CONEXIÓN REAL CON SUPABASE
 async function fetchRealExpenses() {
   if (!supabaseClient) return;
-  
+
   try {
     const { data, error } = await supabaseClient
       .from('gastos')
@@ -378,16 +632,16 @@ async function fetchRealExpenses() {
       .order('fecha', { ascending: false });
 
     if (error) throw error;
-    
+
     currentExpenses = data || [];
     renderApp();
   } catch (error) {
     console.error("Error al cargar gastos de Supabase:", error.message);
-    loadMockData(); // Fallback a mock data si hay fallos en base de datos
+    loadMockData(); // Fallback a mock data
   }
 }
 
-// 6. UTILS (FORMATTERS)
+// 8. UTILS (FORMATTERS)
 function formatCurrency(amount) {
   return new Intl.NumberFormat('es-PE', {
     style: 'currency',
@@ -398,7 +652,7 @@ function formatCurrency(amount) {
 function formatDate(dateString) {
   const d = new Date(dateString);
   if (isNaN(d.getTime())) return dateString;
-  
+
   return d.toLocaleDateString('es-PE', {
     day: '2-digit',
     month: 'short',
@@ -406,7 +660,7 @@ function formatDate(dateString) {
   });
 }
 
-// 7. SERVICE WORKER REGISTRATION (PWA)
+// 9. SERVICE WORKER REGISTRATION (PWA)
 function registerServiceWorker() {
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
@@ -417,21 +671,23 @@ function registerServiceWorker() {
   }
 }
 
-// 8. EXPORTACIÓN LEGAL A PDF (jsPDF & jsPDF-AutoTable)
+// 10. EXPORTACIÓN LEGAL A PDF (jsPDF & jsPDF-AutoTable)
 function setupExportEvent() {
   const btnExport = document.getElementById("btn-export-pdf");
-  if (btnExport) {
-    btnExport.addEventListener("click", () => {
-      exportToPDF();
-    });
-  }
+  const btnExportReports = document.getElementById("btn-export-pdf-reports");
+
+  const handleExport = () => {
+    exportToPDF();
+  };
+
+  if (btnExport) btnExport.addEventListener("click", handleExport);
+  if (btnExportReports) btnExportReports.addEventListener("click", handleExport);
 }
 
 async function exportToPDF() {
-  // A. Obtener datos filtrados visibles en pantalla
   const filterVal = document.getElementById("filter-responsable").value;
-  const dataToExport = filterVal === "todos" 
-    ? currentExpenses 
+  const dataToExport = filterVal === "todos"
+    ? currentExpenses
     : currentExpenses.filter(e => e.responsable === filterVal);
 
   if (dataToExport.length === 0) {
@@ -439,7 +695,6 @@ async function exportToPDF() {
     return;
   }
 
-  // Ordenar cronológicamente ascendente para el reporte formal
   const sortedData = [...dataToExport].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
 
   const { jsPDF } = window.jspdf;
@@ -449,22 +704,18 @@ async function exportToPDF() {
     format: 'a4'
   });
 
-  // B. CONFIGURACIONES GENERALES DEL PDF (Fuentes y Colores)
   const colorPrimary = [15, 23, 42];    // Gris Oscuro (#0F172A)
   const colorSecondary = [71, 85, 105]; // Gris Slate (#475569)
   const colorAccent = [3, 105, 161];    // Azul Fintech (#0369A1)
-  
+
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
 
-  // Helper para dibujar la cabecera en cada página
   const drawHeader = (pageNum) => {
-    // Línea divisoria superior
     doc.setDrawColor(229, 231, 235);
     doc.setLineWidth(0.5);
     doc.line(14, 20, pageWidth - 14, 20);
 
-    // Texto de cabecera formal
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     doc.setTextColor(...colorSecondary);
@@ -472,7 +723,6 @@ async function exportToPDF() {
     doc.text(`Página ${pageNum}`, pageWidth - 25, 15);
   };
 
-  // Helper para dibujar el pie de página en cada página
   const drawFooter = () => {
     doc.setDrawColor(229, 231, 235);
     doc.setLineWidth(0.5);
@@ -485,43 +735,38 @@ async function exportToPDF() {
     doc.text(`Fecha de emisión: ${new Date().toLocaleString('es-PE')}`, pageWidth - 75, pageHeight - 15);
   };
 
-  // ==========================================
-  // PÁGINA 1: RESUMEN GENERAL & AUDITORÍA POR CATEGORÍA
-  // ==========================================
+  // PÁGINA 1: RESUMEN GENERAL
   drawHeader(1);
 
-  // Título Principal
   doc.setFont("helvetica", "bold");
   doc.setFontSize(22);
   doc.setTextColor(...colorPrimary);
   doc.text("REPORTE DE AUDITORÍA FINANCIERA", 14, 35);
-  
+
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   doc.setTextColor(...colorSecondary);
   doc.text("Consolidado legal de gastos y constancias digitales de representación.", 14, 41);
 
-  // Recuadro de Metadatos del Reporte
   doc.setFillColor(249, 250, 251);
   doc.roundedRect(14, 48, pageWidth - 28, 28, 3, 3, "F");
-  doc.rect(14, 48, pageWidth - 28, 28, "S"); // Borde sutil
+  doc.rect(14, 48, pageWidth - 28, 28, "S");
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
   doc.setTextColor(...colorPrimary);
   doc.text("DATOS DEL REPORTE:", 18, 54);
-  
+
   doc.setFont("helvetica", "normal");
   doc.text(`Filtro Responsable:`, 18, 60);
   doc.text(`Total Transacciones:`, 18, 65);
   doc.text(`Generado Por:`, 18, 70);
-  
+
   doc.setFont("helvetica", "bold");
   doc.text(filterVal === "todos" ? "Todos (Sedes Lima y Piura)" : `Sede ${filterVal}`, 55, 60);
   doc.text(`${sortedData.length} registros`, 55, 65);
-  doc.text("demo@legaltracker.pe (Usuario Autenticado)", 55, 70);
+  doc.text(supabaseClient && supabaseClient.auth.getUser() ? "Socio Autenticado" : "demo@legaltracker.pe (Modo Demo)", 55, 70);
 
-  // Monto acumulado destacado
   const totalGeneral = sortedData.reduce((sum, item) => sum + Number(item.monto), 0);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
@@ -531,13 +776,11 @@ async function exportToPDF() {
   doc.setTextColor(...colorAccent);
   doc.text(formatCurrency(totalGeneral), pageWidth - 75, 64);
 
-  // Sección 1: Sumarización por Categorías Legales
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
   doc.setTextColor(...colorPrimary);
   doc.text("1. Resumen Consolidado por Categoría Gasto", 14, 90);
 
-  // Cómputo de totales agrupados por categoría
   const totalesCategoria = {};
   CATEGORIAS_VALIDAS.forEach(cat => totalesCategoria[cat] = 0);
   sortedData.forEach(item => {
@@ -548,7 +791,6 @@ async function exportToPDF() {
     }
   });
 
-  // Filtrar categorías que tienen monto mayor a cero para la tabla resumen
   const resumenFilas = Object.keys(totalesCategoria)
     .filter(cat => totalesCategoria[cat] > 0)
     .map(cat => {
@@ -557,14 +799,13 @@ async function exportToPDF() {
       return [cat, formatCurrency(monto), porcentaje];
     });
 
-  // Tabla Resumen Categorías
   doc.autoTable({
     startY: 95,
-    head: [['Categoría Legal de Gasto', 'Monto Total Consolidado', 'Porcentaje']],
+    head: [['Categoría Gasto', 'Monto Total Consolidado', 'Porcentaje']],
     body: resumenFilas,
     theme: 'grid',
     headStyles: {
-      fillColor: [71, 85, 105], // Gris slate
+      fillColor: [71, 85, 105],
       textColor: [255, 255, 255],
       fontStyle: 'bold',
       fontSize: 9
@@ -579,9 +820,7 @@ async function exportToPDF() {
 
   drawFooter();
 
-  // ==========================================
-  // PÁGINA 2: DETALLE GENERAL DE LAS TRANSACCIONES
-  // ==========================================
+  // PÁGINA 2: DETALLE GENERAL
   doc.addPage();
   drawHeader(2);
 
@@ -604,7 +843,7 @@ async function exportToPDF() {
     body: detalleFilas,
     theme: 'striped',
     headStyles: {
-      fillColor: [15, 23, 42], // Gris oscuro Fintech
+      fillColor: [15, 23, 42],
       textColor: [255, 255, 255],
       fontStyle: 'bold',
       fontSize: 9
@@ -619,15 +858,10 @@ async function exportToPDF() {
     margin: { left: 14, right: 14 }
   });
 
-  // ==========================================
-  // SECCIÓN: ANEXO DE CONSTANCIAS DIGITALES
-  // ==========================================
-  // Obtener gastos que cuentan con archivo de foto
+  // ANEXO DE CONSTANCIAS
   const gastosConFoto = sortedData.filter(item => item.url_foto && item.url_foto.trim() !== "");
-  
   let currentY = doc.lastAutoTable.finalY + 15;
 
-  // Si queda muy poco espacio en la página, agregamos otra página
   if (currentY > pageHeight - 45) {
     doc.addPage();
     drawHeader(doc.internal.getNumberOfPages());
@@ -643,14 +877,13 @@ async function exportToPDF() {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(...colorSecondary);
-  
+
   if (gastosConFoto.length === 0) {
     doc.text("No se registraron imágenes de constancia digital para los gastos en este reporte.", 14, currentY);
   } else {
-    doc.text("A continuación se listan los enlaces directos a los comprobantes digitales almacenados en Supabase Storage:", 14, currentY);
+    doc.text("Enlaces directos a los comprobantes digitales almacenados en Supabase Storage:", 14, currentY);
     currentY += 10;
 
-    // Resolver las URLs firmadas de larga duración de forma secuencial y asíncrona
     const resolvedGastosConFoto = [];
     for (const item of gastosConFoto) {
       let resolvedUrl = item.url_foto;
@@ -658,7 +891,7 @@ async function exportToPDF() {
         try {
           const { data, error } = await supabaseClient.storage
             .from('fotos-gastos')
-            .createSignedUrl(resolvedUrl, 31536000); // URL firmada con validez de 1 año (31,536,000 segundos)
+            .createSignedUrl(resolvedUrl, 31536000); // 1 año de duración
           if (!error) {
             resolvedUrl = data.signedUrl;
           }
@@ -673,14 +906,12 @@ async function exportToPDF() {
     }
 
     resolvedGastosConFoto.forEach((item, index) => {
-      // Si nos pasamos del límite inferior de la página
       if (currentY > pageHeight - 25) {
         doc.addPage();
         drawHeader(doc.internal.getNumberOfPages());
         currentY = 30;
       }
 
-      // Información básica del gasto
       doc.setFont("helvetica", "bold");
       doc.setFontSize(9);
       doc.setTextColor(...colorPrimary);
@@ -693,34 +924,29 @@ async function exportToPDF() {
       doc.text(`Detalle: ${item.detalle_lugar} | Fecha: ${formatDate(item.fecha)}`, 14, currentY);
       currentY += 4.5;
 
-      // Enlace cliqueable
       doc.setFont("helvetica", "bold");
       doc.setTextColor(...colorAccent);
-      
+
       const linkText = "Abrir Recibo Digital (Supabase Storage Link)";
       doc.text(linkText, 14, currentY, {
         link: { url: item.url_foto_firmada }
       });
 
-      // Dibujar línea debajo del link para denotar que es un hipervínculo
       const textWidth = doc.getTextWidth(linkText);
       doc.setDrawColor(...colorAccent);
       doc.setLineWidth(0.2);
       doc.line(14, currentY + 0.5, 14 + textWidth, currentY + 0.5);
 
-      currentY += 10; // Espaciado entre comprobantes
+      currentY += 10;
     });
   }
 
-  // Imprimir pie de página en todas las páginas creadas
   const totalPages = doc.internal.getNumberOfPages();
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
     drawFooter();
   }
 
-  // D. Descargar el archivo
   const fechaStr = new Date().toISOString().split('T')[0];
   doc.save(`Reporte_Gastos_Legal_${fechaStr}.pdf`);
 }
-
