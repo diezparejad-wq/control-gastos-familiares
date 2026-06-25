@@ -87,7 +87,7 @@
             <i class="ph ph-list"></i>
           </button>
           <div>
-            <h1 class="page-title">Dashboard</h1>
+            <h1 class="page-title" id="main-page-title">Dashboard</h1>
             <p class="page-subtitle">Control financiero familiar y legal en tiempo real</p>
           </div>
         </div>
@@ -100,8 +100,8 @@
         </div>
       </header>
 
-      <!-- SECCIÓN DEL DASHBOARD -->
-      <section class="dashboard-section">
+      <!-- SECCIÓN 1: DASHBOARD -->
+      <section class="dashboard-section" id="section-dashboard">
         
         <!-- TARJETAS SUPERIORES (TOP CARDS) - COLORES PASTEL -->
         <div class="stats-grid">
@@ -192,9 +192,134 @@
             <span>Mostrando <strong id="visible-count">0</strong> de <strong id="total-count">0</strong> gastos</span>
           </div>
         </div>
+      </section>
 
+      <!-- SECCIÓN 2: REGISTRO DE GASTOS (FORMULARIO MANUAL) -->
+      <section class="dashboard-section" id="section-expenses" style="display: none;">
+        <div class="form-container">
+          <h3 class="section-form-title">Registrar Nuevo Gasto Legal</h3>
+          <p class="section-form-subtitle">Completa el formulario para ingresar un gasto manualmente a Supabase</p>
+          
+          <form class="expense-entry-form" id="expense-form">
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="exp-categoria">Categoría de Gasto</label>
+                <select id="exp-categoria" class="form-control-select" required>
+                  <option value="" disabled selected>Selecciona una opción</option>
+                  <option value="Honorarios">Honorarios</option>
+                  <option value="Tasas y Tributos">Tasas y Tributos</option>
+                  <option value="Notaría y Registros">Notaría y Registros</option>
+                  <option value="Transporte y Viáticos">Transporte y Viáticos</option>
+                  <option value="Alimentación y Representación">Alimentación y Representación</option>
+                  <option value="Suministros y Oficina">Suministros y Oficina</option>
+                  <option value="Servicios Públicos">Servicios Públicos</option>
+                  <option value="Otros Gastos">Otros Gastos</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="exp-monto">Monto (S/.)</label>
+                <input type="number" id="exp-monto" class="form-control-input" placeholder="0.00" step="0.01" min="0.01" required>
+              </div>
+
+              <div class="form-group">
+                <label for="exp-fecha">Fecha del Gasto</label>
+                <input type="date" id="exp-fecha" class="form-control-input" required>
+              </div>
+
+              <div class="form-group">
+                <label for="exp-responsable">Sede Responsable</label>
+                <select id="exp-responsable" class="form-control-select" required>
+                  <option value="Lima">Sede Lima</option>
+                  <option value="Piura">Sede Piura</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group full-width">
+              <label for="exp-detalle">Detalle / Lugar / Motivo</label>
+              <input type="text" id="exp-detalle" class="form-control-input" placeholder="Ej: Notaría Paino - Legalización de actas corporativas" required>
+            </div>
+
+            <div class="form-group full-width">
+              <label for="exp-foto">Foto del Recibo o Constancia (Opcional)</label>
+              <div class="file-upload-wrapper">
+                <input type="file" id="exp-foto" class="file-upload-input" accept="image/*">
+                <div class="file-upload-design">
+                  <i class="ph ph-upload-simple"></i>
+                  <span id="file-upload-text">Arrastra o haz clic para subir una foto</span>
+                  <span class="file-upload-sub">Formatos permitidos: JPG, PNG (máx 5MB)</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button type="submit" class="btn-submit-expense" id="btn-save-expense">
+                <i class="ph ph-floppy-disk"></i>
+                <span>Guardar Gasto en Supabase</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <!-- SECCIÓN 3: REPORTES Y AUDITORÍA -->
+      <section class="dashboard-section" id="section-reports" style="display: none;">
+        <div class="reports-container">
+          <div class="reports-header-panel">
+            <div class="reports-header-left">
+              <h3>Consolidado de Reportes Legales</h3>
+              <p>Genera reportes financieros oficiales para fines de auditoría externa e impuestos.</p>
+            </div>
+            <button class="btn-export-pdf-large" id="btn-export-pdf-reports">
+              <i class="ph ph-file-pdf"></i>
+              <span>Descargar Reporte PDF Completo</span>
+            </button>
+          </div>
+
+          <div class="reports-insights-grid">
+            <div class="insight-card">
+              <h4>Total Acumulado General</h4>
+              <h2 id="report-total-general">S/ 0.00</h2>
+              <p>Monto sumado de todos los gastos registrados actualmente en la base de datos.</p>
+            </div>
+            <div class="insight-card">
+              <h4>Gastos con Comprobante</h4>
+              <h2 id="report-total-with-receipt">0</h2>
+              <p>Cantidad de registros que cuentan con recibo adjunto en Supabase Storage.</p>
+            </div>
+          </div>
+        </div>
       </section>
     </main>
+  </div>
+
+  <!-- PANTALLA DE LOGIN OVERLAY (CUBRE TODA LA APP SI NO HAY SESIÓN) -->
+  <div class="login-overlay active" id="login-container">
+    <div class="login-card">
+      <div class="login-header">
+        <div class="login-logo">
+          <i class="ph ph-scales"></i>
+        </div>
+        <h2>Legal-Expense Tracker</h2>
+        <p>Introduce tus credenciales autorizadas</p>
+      </div>
+      <form class="login-form" id="login-form">
+        <div class="form-group">
+          <label for="login-email">Correo Electrónico</label>
+          <input type="email" id="login-email" class="form-control-input" required placeholder="correo@ejemplo.com">
+        </div>
+        <div class="form-group">
+          <label for="login-password">Contraseña</label>
+          <input type="password" id="login-password" class="form-control-input" required placeholder="••••••••">
+        </div>
+        <div class="error-message" id="login-error"></div>
+        <button type="submit" class="btn-login-submit" id="btn-login-submit">
+          <span>Iniciar Sesión</span>
+          <i class="ph ph-sign-in"></i>
+        </button>
+      </form>
+    </div>
   </div>
 
   <!-- MODAL DE CONSTANCIA - VISUALIZACIÓN DE FOTOS -->
