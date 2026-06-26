@@ -48,12 +48,16 @@ const CATEGORIAS_VALIDAS = [
 // 3. CONTROLADOR DE MENSAJES
 bot.on('message', async (msg) => {
   const chatId = msg.chat.id.toString(); // Destinatario (puede ser chat personal o ID de grupo)
-  const userId = msg.from.id.toString(); // Remitente real
-  const username = msg.from.username || "sin_usuario";
-  const firstName = msg.from.first_name || "Socio";
+  const userId = msg.from ? msg.from.id.toString() : ''; // Remitente real
+  const username = msg.from ? (msg.from.username || "sin_usuario") : "sin_usuario";
+  const firstName = msg.from ? (msg.from.first_name || "Socio") : "Socio";
+  const chatType = msg.chat.type; // 'private', 'group', or 'supergroup'
 
   // Mostrar información en consola para ayudar a conocer los IDs
-  console.log(`📩 Mensaje recibido en Chat ID: ${chatId} | De User ID: ${userId} | Usuario: @${username}`);
+  console.log(`📩 Mensaje recibido en Chat ID: ${chatId} (${chatType}) | De User ID: ${userId} | Usuario: @${username}`);
+
+  // Ignorar mensajes del propio bot o mensajes sin remitente (por seguridad)
+  if (!userId) return;
 
   // Seguridad: Validar si el remitente está en la lista blanca
   if (allowedUsers.length > 0 && !allowedUsers.includes(userId)) {
@@ -65,8 +69,8 @@ bot.on('message', async (msg) => {
     );
   }
 
-  // Comando /start para bienvenida e información
-  if (msg.text === '/start') {
+  // Comando /start para bienvenida e información (soporta /start y /start@bot_username)
+  if (msg.text && msg.text.startsWith('/start')) {
     return bot.sendMessage(
       chatId,
       `👋 ¡Hola, *${firstName}*! Bienvenido al *Legal-Expense Bot*\n\n` +
@@ -84,8 +88,8 @@ bot.on('message', async (msg) => {
   // Validar si el mensaje es una foto
   if (msg.photo) {
     await procesarGastoConFoto(msg, chatId, username);
-  } else if (msg.text && !msg.text.startsWith('/')) {
-    // Si mandó solo texto sin foto
+  } else if (chatType === 'private' && msg.text && !msg.text.startsWith('/')) {
+    // Si mandó solo texto sin foto en chat privado, le recordamos el formato
     bot.sendMessage(
       chatId,
       `⚠️ *Para registrar un gasto debes enviar la foto del recibo/constancia.*\n\n` +
@@ -94,6 +98,7 @@ bot.on('message', async (msg) => {
       { parse_mode: 'Markdown' }
     );
   }
+  // En grupos o supergrupos ignoramos los textos planos para no spamear la conversación grupal
 });
 
 // 4. LÓGICA DE PROCESAMIENTO DE GASTO
