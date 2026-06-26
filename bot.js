@@ -28,9 +28,9 @@ const bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { polling: true });
 
 console.log("🚀 Bot de Telegram iniciado correctamente y escuchando...");
 
-// Parser de lista de usuarios autorizados
+// Parser de lista de usuarios autorizados (se eliminan espacios y comillas accidentales)
 const allowedUsers = TELEGRAM_ALLOWED_USERS 
-  ? TELEGRAM_ALLOWED_USERS.split(',').map(id => id.trim()) 
+  ? TELEGRAM_ALLOWED_USERS.split(',').map(id => id.trim().replace(/['"]/g, '')) 
   : [];
 
 // Mapeo estricto del Enum de la Base de Datos
@@ -232,8 +232,10 @@ async function procesarGastoConFoto(msg, chatId, username) {
 
 // Detecta si es Lima o Piura según el ID de chat
 function detectSede(chatId) {
-  if (chatId === TELEGRAM_USER_LIMA) return 'Lima';
-  if (chatId === TELEGRAM_USER_PIURA) return 'Piura';
+  const cleanLima = TELEGRAM_USER_LIMA ? TELEGRAM_USER_LIMA.replace(/['"]/g, '').trim() : '';
+  const cleanPiura = TELEGRAM_USER_PIURA ? TELEGRAM_USER_PIURA.replace(/['"]/g, '').trim() : '';
+  if (chatId === cleanLima) return 'Lima';
+  if (chatId === cleanPiura) return 'Piura';
   return 'Lima'; // Valor por defecto si es otro usuario autorizado
 }
 
