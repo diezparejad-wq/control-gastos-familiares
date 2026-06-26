@@ -47,19 +47,20 @@ const CATEGORIAS_VALIDAS = [
 
 // 3. CONTROLADOR DE MENSAJES
 bot.on('message', async (msg) => {
-  const chatId = msg.chat.id.toString();
+  const chatId = msg.chat.id.toString(); // Destinatario (puede ser chat personal o ID de grupo)
+  const userId = msg.from.id.toString(); // Remitente real
   const username = msg.from.username || "sin_usuario";
   const firstName = msg.from.first_name || "Socio";
 
-  // Mostrar información en consola para ayudar al usuario a conocer su ID de chat
-  console.log(`📩 Mensaje recibido de Chat ID: ${chatId} | Usuario: @${username} | Nombre: ${firstName}`);
+  // Mostrar información en consola para ayudar a conocer los IDs
+  console.log(`📩 Mensaje recibido en Chat ID: ${chatId} | De User ID: ${userId} | Usuario: @${username}`);
 
-  // Seguridad: Validar si el usuario está en la lista blanca
-  if (allowedUsers.length > 0 && !allowedUsers.includes(chatId)) {
-    console.warn(`🔒 Acceso denegado a Chat ID: ${chatId}`);
+  // Seguridad: Validar si el remitente está en la lista blanca
+  if (allowedUsers.length > 0 && !allowedUsers.includes(userId)) {
+    console.warn(`🔒 Acceso denegado a User ID: ${userId} en Chat ID: ${chatId}`);
     return bot.sendMessage(
       chatId, 
-      `⛔ *Acceso Denegado*\nNo estás autorizado para registrar gastos en este bot.\n\n🔑 *Tu Telegram Chat ID es:* \`${chatId}\`\nPídele al administrador que lo agregue a la variable \`TELEGRAM_ALLOWED_USERS\` en el archivo \`.env\`.`,
+      `⛔ *Acceso Denegado*\nNo estás autorizado para registrar gastos en este bot.\n\n🔑 *Tu Telegram User ID es:* \`${userId}\`\nPídele al administrador que lo agregue a la variable \`TELEGRAM_ALLOWED_USERS\` en el archivo \`.env\`.`,
       { parse_mode: 'Markdown' }
     );
   }
@@ -75,7 +76,7 @@ bot.on('message', async (msg) => {
       `\`Alimentación, 150.50, 2026-06-25, Almuerzo de trabajo con Notario\`\n\n` +
       `🔍 *Categorías válidas:*\n` +
       CATEGORIAS_VALIDAS.map(c => `• _${c}_`).join('\n') + `\n\n` +
-      `Sede asignada a tu cuenta: *${detectSede(chatId)}*`,
+      `Sede asignada a tu cuenta: *${detectSede(userId)}*`,
       { parse_mode: 'Markdown' }
     );
   }
@@ -143,7 +144,8 @@ async function procesarGastoConFoto(msg, chatId, username) {
     const fecha = normalizarFecha(rawFecha);
 
     // E. Determinar sede (Lima o Piura)
-    const responsable = detectSede(chatId);
+    const userId = msg.from.id.toString();
+    const responsable = detectSede(userId);
 
     // F. Descargar la foto de los servidores de Telegram
     // La foto de mayor resolución está al final del array msg.photo
