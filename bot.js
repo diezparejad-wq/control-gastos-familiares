@@ -59,7 +59,7 @@ bot.on('message', async (msg) => {
     console.warn(`🔒 Acceso denegado a Chat ID: ${chatId}`);
     return bot.sendMessage(
       chatId, 
-      `⛔ *Acceso Denegado*\nNo estás autorizado para registrar gastos en este bot.\n\n🔑 *Tu Telegram Chat ID es:* \`${chatId}\`\n📋 *Usuarios autorizados cargados:* \`${JSON.stringify(allowedUsers)}\`\n\nPídele al administrador que lo agregue a la variable \`TELEGRAM_ALLOWED_USERS\` en el archivo \`.env\`.`,
+      `⛔ *Acceso Denegado*\nNo estás autorizado para registrar gastos en este bot.\n\n🔑 *Tu Telegram Chat ID es:* \`${chatId}\`\nPídele al administrador que lo agregue a la variable \`TELEGRAM_ALLOWED_USERS\` en el archivo \`.env\`.`,
       { parse_mode: 'Markdown' }
     );
   }
