@@ -42,6 +42,8 @@ const CATEGORIAS_VALIDAS = [
   'Alimentación y Representación',
   'Suministros y Oficina',
   'Servicios Públicos',
+  'Alquiler',
+  'Mantenimiento',
   'Otros Gastos'
 ];
 
@@ -274,6 +276,14 @@ function normalizarCategoria(input) {
   
   if (raw.includes("servicio") || raw.includes("luz") || raw.includes("agua") || raw.includes("internet") || raw.includes("software")) {
     return 'Servicios Públicos';
+  }
+
+  if (raw.includes("alquiler") || raw.includes("arriendo") || raw.includes("renta") || raw.includes("local")) {
+    return 'Alquiler';
+  }
+
+  if (raw.includes("mantenimiento") || raw.includes("reparacion") || raw.includes("limpieza") || raw.includes("arreglo")) {
+    return 'Mantenimiento';
   }
 
   // Comprobar si el usuario escribió la categoría muy parecida

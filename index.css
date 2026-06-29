@@ -572,6 +572,8 @@ h1, h2, h3, h4, .brand-name, .card-value {
 .badge-alimentacion { background-color: #fef9c3; color: #854d0e; }
 .badge-suministros { background-color: #faf5ff; color: #6b21a8; }
 .badge-servicios { background-color: #e0f2fe; color: #075985; }
+.badge-alquiler { background-color: #ffe4e6; color: #9f1239; }
+.badge-mantenimiento { background-color: #ccfbf1; color: #115e59; }
 .badge-otros { background-color: #f3f4f6; color: #374151; }
 
 /* Sede Badges */

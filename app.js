@@ -80,6 +80,8 @@ const CATEGORIAS_VALIDAS = [
   'Alimentación y Representación',
   'Suministros y Oficina',
   'Servicios Públicos',
+  'Alquiler',
+  'Mantenimiento',
   'Otros Gastos'
 ];
 
@@ -442,6 +444,8 @@ function getCategoryClass(categoria) {
     case 'Alimentación y Representación': return 'badge-alimentacion';
     case 'Suministros y Oficina': return 'badge-suministros';
     case 'Servicios Públicos': return 'badge-servicios';
+    case 'Alquiler': return 'badge-alquiler';
+    case 'Mantenimiento': return 'badge-mantenimiento';
     case 'Otros Gastos': return 'badge-otros';
     default: return 'badge-otros';
   }
