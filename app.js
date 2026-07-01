@@ -5,6 +5,20 @@
 // 1. VARIABLES GLOBALES Y ESTADO DE LA APLICACIÓN
 let supabaseClient = null;
 let currentExpenses = [];
+let selectedMonth = 'current'; // 'all', 'current', o 'YYYY-MM'
+
+// Helper: Parsea fecha YYYY-MM-DD o ISO string como fecha LOCAL (sin desfase UTC)
+// Esto evita que "2026-07-01T00:00:00Z" se convierta en "30 jun" en Lima (UTC-5)
+function parseDateLocal(dateString) {
+  if (!dateString) return new Date(NaN);
+  // Extraer solo la parte YYYY-MM-DD (ignorar hora/zona si existe)
+  const match = String(dateString).match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (match) {
+    return new Date(parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]));
+  }
+  // Fallback para formatos inesperados
+  return new Date(dateString);
+}
 
 // Credenciales de Supabase
 // ==========================================
@@ -95,6 +109,7 @@ function initApp() {
   setupMobileMenu();
   setupModalEvents();
   setupFilterEvents();
+  setupMonthFilter();
   setupExportEvent();
   setupFormFileInput();
   setupFormSubmit();
@@ -286,23 +301,60 @@ function setupNavigation() {
 
 // 5. RENDERIZACIÓN DE LA INTERFAZ
 function renderApp(filteredResponsable = "todos") {
-  const filtered = filteredResponsable === "todos"
-    ? currentExpenses
+  let filtered = filteredResponsable === "todos"
+    ? [...currentExpenses]
     : currentExpenses.filter(e => e.responsable === filteredResponsable);
+
+  // Aplicar filtro de mes
+  if (selectedMonth === 'current') {
+    const now = new Date();
+    const currentMonthNum = now.getMonth();
+    const currentYear = now.getFullYear();
+    filtered = filtered.filter(expense => {
+      const d = parseDateLocal(expense.fecha);
+      return d.getMonth() === currentMonthNum && d.getFullYear() === currentYear;
+    });
+  } else if (selectedMonth !== 'all' && selectedMonth) {
+    // selectedMonth es 'YYYY-MM'
+    const [filterYear, filterMonthStr] = selectedMonth.split('-');
+    const filterYearNum = parseInt(filterYear, 10);
+    const filterMonthNum = parseInt(filterMonthStr, 10) - 1; // 0-indexed
+    filtered = filtered.filter(expense => {
+      const d = parseDateLocal(expense.fecha);
+      return d.getMonth() === filterMonthNum && d.getFullYear() === filterYearNum;
+    });
+  }
+  // 'all' → no filtra por mes
 
   renderTotals();
   renderTable(filtered);
+  populateMonthFilter();
 }
 
 // Cómputo de totales (Cards superiores)
 function renderTotals() {
-  const currentMonth = new Date().getMonth();
-  const currentYear = new Date().getFullYear();
+  const now = new Date();
+  let targetMonth, targetYear;
 
-  const currentMonthExpenses = currentExpenses.filter(expense => {
-    const d = new Date(expense.fecha);
-    return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
-  });
+  if (selectedMonth === 'current') {
+    targetMonth = now.getMonth();
+    targetYear = now.getFullYear();
+  } else if (selectedMonth === 'all') {
+    targetMonth = null; // Sin filtro
+    targetYear = null;
+  } else {
+    // selectedMonth es 'YYYY-MM'
+    const [y, m] = selectedMonth.split('-');
+    targetYear = parseInt(y, 10);
+    targetMonth = parseInt(m, 10) - 1;
+  }
+
+  const currentMonthExpenses = (targetMonth === null)
+    ? currentExpenses
+    : currentExpenses.filter(expense => {
+        const d = parseDateLocal(expense.fecha);
+        return d.getMonth() === targetMonth && d.getFullYear() === targetYear;
+      });
 
   let totalMes = 0;
   let totalLima = 0;
@@ -325,6 +377,19 @@ function renderTotals() {
       countPiura++;
     }
   });
+
+  // Actualizar label de la card según el mes seleccionado
+  const cardLabel = document.querySelector('.card-total-mes .card-label');
+  if (cardLabel) {
+    if (selectedMonth === 'all') {
+      cardLabel.textContent = 'Total Acumulado';
+    } else if (selectedMonth === 'current') {
+      cardLabel.textContent = 'Total Mes Actual';
+    } else {
+      const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+      cardLabel.textContent = `Total ${meses[targetMonth]} ${targetYear}`;
+    }
+  }
 
   document.getElementById("stat-total-mes").textContent = formatCurrency(totalMes);
   document.getElementById("stat-subtext-mes").textContent = `${countMes} transacciones`;
@@ -515,6 +580,64 @@ function setupFilterEvents() {
   }
 }
 
+// Configurar filtro por mes
+function setupMonthFilter() {
+  const monthFilter = document.getElementById("filter-month");
+  if (monthFilter) {
+    monthFilter.addEventListener("change", (e) => {
+      selectedMonth = e.target.value;
+      const filterResp = document.getElementById("filter-responsable");
+      renderApp(filterResp ? filterResp.value : "todos");
+    });
+  }
+}
+
+// Poblar dropdown de meses disponibles dinámicamente
+function populateMonthFilter() {
+  const monthFilter = document.getElementById("filter-month");
+  if (!monthFilter) return;
+
+  const previousValue = monthFilter.value || 'current';
+
+  // Obtener meses únicos de los gastos
+  const monthSet = new Set();
+  currentExpenses.forEach(expense => {
+    const d = parseDateLocal(expense.fecha);
+    if (!isNaN(d.getTime())) {
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      monthSet.add(key);
+    }
+  });
+
+  // Asegurar que el mes actual siempre esté
+  const now = new Date();
+  const currentKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  monthSet.add(currentKey);
+
+  // Ordenar descendente
+  const sortedMonths = [...monthSet].sort((a, b) => b.localeCompare(a));
+
+  const mesesNombres = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+  // Preservar opciones fijas y agregar meses dinámicos
+  monthFilter.innerHTML = `
+    <option value="current">Mes Actual</option>
+    <option value="all">Todos los meses</option>
+    ${sortedMonths.map(key => {
+      const [y, m] = key.split('-');
+      const monthName = mesesNombres[parseInt(m, 10) - 1];
+      return `<option value="${key}">${monthName} ${y}</option>`;
+    }).join('')}
+  `;
+
+  // Restaurar selección previa
+  if ([...monthFilter.options].some(opt => opt.value === previousValue)) {
+    monthFilter.value = previousValue;
+  } else {
+    monthFilter.value = 'current';
+  }
+}
+
 // Interacción del cargador de archivos del formulario
 function setupFormFileInput() {
   const fileInput = document.getElementById("exp-foto");
@@ -576,7 +699,7 @@ function setupFormSubmit() {
 
       // B. REGISTRAR EN BASE DE DATOS
       const nuevoGasto = {
-        fecha: new Date(fecha).toISOString(),
+        fecha: fecha, // Guardar YYYY-MM-DD directo, sin convertir a ISO/UTC
         categoria,
         detalle_lugar: detalle,
         responsable,
@@ -638,7 +761,7 @@ function setupEditFormSubmit() {
 
     try {
       const gastoActualizado = {
-        fecha: new Date(fecha).toISOString(),
+        fecha: fecha, // Guardar YYYY-MM-DD directo, sin convertir a ISO/UTC
         categoria,
         detalle_lugar: detalle,
         responsable,
@@ -693,8 +816,8 @@ function openEditModal(expenseId) {
   document.getElementById("edit-exp-categoria").value = expense.categoria;
   document.getElementById("edit-exp-monto").value = expense.monto;
   
-  // Formatear fecha para el input (YYYY-MM-DD)
-  const d = new Date(expense.fecha);
+  // Formatear fecha para el input (YYYY-MM-DD) usando parseo local
+  const d = parseDateLocal(expense.fecha);
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
@@ -835,7 +958,7 @@ function formatCurrency(amount) {
 }
 
 function formatDate(dateString) {
-  const d = new Date(dateString);
+  const d = parseDateLocal(dateString);
   if (isNaN(d.getTime())) return dateString;
 
   return d.toLocaleDateString('es-PE', {
