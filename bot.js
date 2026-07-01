@@ -193,7 +193,7 @@ async function procesarGastoConFoto(msg, chatId, username) {
       .from('gastos')
       .insert([
         {
-          fecha: fecha.toISOString(),
+          fecha: fecha, // YYYY-MM-DD string — sin zona horaria, evita desfase UTC
           categoria,
           detalle_lugar: detalleLugar,
           responsable,
@@ -211,12 +211,17 @@ async function procesarGastoConFoto(msg, chatId, username) {
     // J. Responder al usuario con la confirmación de éxito
     bot.deleteMessage(chatId, statusMsg.message_id).catch(() => {});
     
+    // Formatear la fecha YYYY-MM-DD para mostrar bonito en el mensaje
+    const [anio, mes, dia] = fecha.split('-');
+    const meses = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+    const fechaBonita = `${dia} ${meses[parseInt(mes, 10) - 1]} ${anio}`;
+
     bot.sendMessage(
       chatId,
       `✅ *¡Gasto registrado con éxito!*\n\n` +
       `📂 *Categoría:* ${categoria}\n` +
       `💰 *Monto:* S/ ${monto.toFixed(2)}\n` +
-      `📅 *Fecha:* ${fecha.toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' })}\n` +
+      `📅 *Fecha:* ${fechaBonita}\n` +
       `📍 *Detalle/Lugar:* ${detalleLugar}\n` +
       `👤 *Responsable:* Sede ${responsable}\n` +
       `📸 *Constancia:* Subida correctamente`,
@@ -293,30 +298,46 @@ function normalizarCategoria(input) {
   return 'Otros Gastos'; // Fallback por defecto
 }
 
-// Normaliza la fecha a formato Date de JS
+// Normaliza la fecha y retorna string YYYY-MM-DD (sin hora, sin zona horaria)
+// Usa la zona horaria de Lima para "hoy" y "ayer" aunque el servidor esté en UTC
 function normalizarFecha(input) {
-  const hoy = new Date();
-  
-  if (input.toLowerCase() === 'hoy') return hoy;
-  if (input.toLowerCase() === 'ayer') {
-    const ayer = new Date();
-    ayer.setDate(hoy.getDate() - 1);
-    return ayer;
+  const trimmed = input.trim().toLowerCase();
+
+  if (trimmed === 'hoy') {
+    // Obtener la fecha actual en zona horaria de Lima
+    const limaDate = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Lima' }); // en-CA retorna YYYY-MM-DD
+    return limaDate;
   }
 
-  // Intentar parsear formato YYYY-MM-DD
-  let parsed = Date.parse(input);
-  if (!isNaN(parsed)) return new Date(parsed);
+  if (trimmed === 'ayer') {
+    const ahora = new Date();
+    ahora.setDate(ahora.getDate() - 1);
+    const limaDate = ahora.toLocaleDateString('en-CA', { timeZone: 'America/Lima' });
+    return limaDate;
+  }
+
+  // Intentar parsear formato YYYY-MM-DD (ya es el formato deseado)
+  const regexISO = /^(\d{4})-(\d{2})-(\d{2})$/;
+  const matchISO = input.trim().match(regexISO);
+  if (matchISO) {
+    const y = parseInt(matchISO[1], 10);
+    const m = parseInt(matchISO[2], 10);
+    const d = parseInt(matchISO[3], 10);
+    if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+      return input.trim(); // Devolver el string tal cual
+    }
+  }
 
   // Intentar parsear formato DD/MM/YYYY o DD-MM-YYYY
   const regexDate = /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/;
-  const match = input.match(regexDate);
+  const match = input.trim().match(regexDate);
   if (match) {
-    const day = parseInt(match[1], 10);
-    const month = parseInt(match[2], 10) - 1; // 0-indexed
-    const year = parseInt(match[3], 10);
-    const date = new Date(year, month, day);
-    if (!isNaN(date.getTime())) return date;
+    const day = String(parseInt(match[1], 10)).padStart(2, '0');
+    const month = String(parseInt(match[2], 10)).padStart(2, '0');
+    const year = match[3];
+    if (parseInt(month, 10) >= 1 && parseInt(month, 10) <= 12 && parseInt(day, 10) >= 1 && parseInt(day, 10) <= 31) {
+      return `${year}-${month}-${day}`; // Convertir a YYYY-MM-DD
+    }
   }
 
   // Si falla el parseo, lanzar error para no guardar fechas erróneas
